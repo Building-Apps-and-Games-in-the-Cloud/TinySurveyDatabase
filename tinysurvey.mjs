@@ -1,5 +1,6 @@
 import { SurveyManager } from './surveymanagerdb.mjs';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 
 // Create the express application
 const app = express();
@@ -8,7 +9,7 @@ const app = express();
 let surveyManager = new SurveyManager();
 await surveyManager.init();
 
-const port = 8080;
+const port = 8080;  
 
 // Select ejs middleware
 app.set('view-engine', 'ejs');
@@ -16,25 +17,67 @@ app.set('view-engine', 'ejs');
 // Select the middleware to decode incoming posts
 app.use(express.urlencoded({ extended: false }));
 
+// Add the cookie parser middleware
+app.use(cookieParser());
+
 // Home page
 app.get('/index.html', (request, response) => {
   response.render('index.ejs');
 });
 
-// Got the survey topic
 app.post('/gottopic', async (request, response) => {
+
   let topic = request.body.topic;
 
-  let surveyOptions = await  surveyManager.getOptions(topic);
+  let surveyOptions = await surveyManager.getOptions(topic);
 
-  if (surveyOptions==null) {
+  if (surveyOptions) {
+    // Need to check if the survey has already been filled in
+    // by this user
+    if (request.cookies.completedSurveys) {
+      // Got a completed surveys cookie
+      // Parse it into a list of completed surveys
+      let completedSurveys = JSON.parse(request.cookies.completedSurveys);
+      // Look for the current topic in the list
+      if (completedSurveys.includes(topic)) {
+        // This survey has already been filled in using this browser
+        // Just display the results
+        let results = await surveyManager.getCounts(topic);
+        response.render('displayresults.ejs', results);
+      }
+      else {
+        // Survey not in the cookie
+        // enter scores on an existing survey
+        let surveyOptions = await surveyManager.getOptions(topic);
+        response.render('selectoption.ejs', surveyOptions);
+      }
+    }
+    else {
+      // There is no completed surveys cookie
+      // enter scores on an existing survey
+      let surveyOptions = await surveyManager.getOptions(topic);
+      response.render('selectoption.ejs', surveyOptions);
+    }
+  }
+  else {
+    // There is no existing survey - need to make a new one
+    // Might need to delete the topic from the completed surveys
+    if (request.cookies.completedSurveys) {
+      // Get the cookie value and parse it 
+      let completedSurveys = JSON.parse(request.cookies.completedSurveys);
+      // Check if the topic is in the completed ones
+      if (completedSurveys.includes(topic)) {
+        // Delete the topic from the completedSurveys array
+        let topicIndex = completedSurveys.indexOf(topic);
+        completedSurveys.splice(topicIndex, 1);
+        // Update the stored cookie
+        let completedSurveysJSON = JSON.stringify(completedSurveys);
+        response.cookie("completedSurveys", completedSurveysJSON);
+      }
+    }
     // need to make a new survey
     response.render('enteroptions.ejs',
       { topic: topic, numberOfOptions: 5 });
-  }
-  else {
-    // enter scores on an existing survey
-    response.render('selectoption.ejs', surveyOptions);
   }
 });
 
@@ -67,7 +110,7 @@ app.post('/setoptions/:topic', async (request, response) => {
   await surveyManager.storeSurvey(newSurvey);
 
   // Render the survey page
-  let surveyOptions = surveyManager.getOptions(topic);
+  let surveyOptions = await surveyManager.getOptions(topic);
   response.render('selectoption.ejs', surveyOptions);
 });
 
@@ -81,11 +124,28 @@ app.post('/recordselection/:topic', async (request, response) => {
     response.status(404).send('<h1>Survey not found</h1>');
   }
   else {
-    // store the survey
-    let optionSelected = request.body.selections;
-    // Build an increment description
-    let incDetails = { topic: topic, option: optionSelected };
-    await surveyManager.incrementCount(incDetails);
+    // Start with an empty completed survey list
+    let completedSurveys = [];
+    if (request.cookies.completedSurveys) {
+      // Got a completed surveys cookie
+      completedSurveys = JSON.parse(request.cookies.completedSurveys);
+    }
+    // Look for the current topic in completedSurveys
+    if (completedSurveys.includes(topic) == false) {
+      // This survey has not been filled in at this browser
+      // Get the text of the selected option
+      let optionSelected = request.body.selections;
+      // Build an increment description
+      let incDetails = { topic: topic, option: optionSelected };
+      // Increment the count 
+      await surveyManager.incrementCount(incDetails);
+      // Add the topic to the completed surveys
+      completedSurveys.push(topic);
+      // Make a JSON string for storage
+      let completedSurveysJSON = JSON.stringify(completedSurveys);
+      // store the cookie
+      response.cookie("completedSurveys", completedSurveysJSON);
+    }
     let results = await surveyManager.getCounts(topic);
     response.render('displayresults.ejs', results);
   }

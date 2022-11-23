@@ -1,4 +1,4 @@
-import { Survey, Option } from './models/survey.mjs'
+import { Survey } from './models/survey.mjs'
 import mongoose from 'mongoose';
 
 class SurveyManagerDB {
