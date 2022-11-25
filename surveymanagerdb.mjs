@@ -1,16 +1,13 @@
-import { Survey } from './models/survey.mjs'
 import mongoose from 'mongoose';
+import { Surveys } from './models/survey.mjs'
 
 class SurveyManagerDB {
 
-    /**
-     * Make a new helper store
-     */
     constructor() {
     }
 
     async init() {
-        await mongoose.connect('mongodb://localhost/tiny_survey_db');
+        await mongoose.connect('mongodb://localhost/tiny_surveys');
     }
 
     /**
@@ -18,12 +15,12 @@ class SurveyManagerDB {
      * @param {Object} newValue topic string and option list  
      */
     async storeSurvey(newValue) {
-        let survey = await Survey.findOne({ topic: newValue.topic });
+        let survey = await Surveys.findOne({ topic: newValue.topic });
         if (survey != null) {
             await survey.updateOne(newValue);
         }
         else {
-            let newSurvey = new Survey(newValue);
+            let newSurvey = new Surveys(newValue);
             await newSurvey.save();
         }
     }
@@ -33,7 +30,7 @@ class SurveyManagerDB {
      * @param {Object} incDetails topic and option names
      */
     async incrementCount(incDetails) {
-        let survey = await Survey.findOne({ topic: incDetails.topic });
+        let survey = await Surveys.findOne({ topic: incDetails.topic });
         let option = survey.options.find(
             item => item.text == incDetails.option);
         if (option != undefined) {
@@ -44,7 +41,7 @@ class SurveyManagerDB {
     }
 
     async surveyExists(topic) {
-        let survey = await Survey.findOne({ topic: topic });
+        let survey = await Surveys.findOne({ topic: topic });
         return survey != null;
     }
 
@@ -55,7 +52,7 @@ class SurveyManagerDB {
      */
     async getCounts(topic) {
         let result;
-        let survey = await Survey.findOne({ topic: topic });
+        let survey = await Surveys.findOne({ topic: topic });
         if (survey != null) {
             let options = [];
             survey.options.forEach(option => {
@@ -77,7 +74,7 @@ class SurveyManagerDB {
      */
     async getOptions(topic) {
         let result;
-        let survey = await Survey.findOne({ topic: topic });
+        let survey = await Surveys.findOne({ topic: topic });
         if (survey != null) {
             let options = [];
             survey.options.forEach(option => {

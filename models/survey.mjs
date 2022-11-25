@@ -14,14 +14,16 @@ var optionSchema = mongoose.Schema({
 });
 
 var surveySchema = mongoose.Schema({
-    topic: String,
+    topic: {
+        type: String,
+        required: true
+    },
     options: {
         type: [optionSchema],
         required: true
     }
 });
 
-let Survey = mongoose.model('Survey', surveySchema);
-let Option = mongoose.model('Option', optionSchema);
+let Surveys = mongoose.model('surveys', surveySchema);
     
-export { Survey, Option };
+export { Surveys as Surveys };
