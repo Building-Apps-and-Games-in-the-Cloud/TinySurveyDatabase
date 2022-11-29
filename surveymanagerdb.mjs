@@ -10,6 +10,10 @@ class SurveyManagerDB {
         await mongoose.connect('mongodb://localhost/tiny_surveys');
     }
 
+    async disconnect(){
+        await mongoose.disconnect();
+    }
+
     /**
      * Stores a survey
      * @param {Object} newValue topic string and option list  
