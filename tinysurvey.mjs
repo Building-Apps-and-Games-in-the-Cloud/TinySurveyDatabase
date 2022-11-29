@@ -1,13 +1,20 @@
-import { SurveyManager } from './surveymanagerdb.mjs';
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import { SurveyManager } from './surveymanagerdb.mjs';
+import {checkSurveys} from './helpers/checkstorage.mjs';
 
 // Create the express application
 const app = express();
 
 // Create a survey manager
 let surveyManager = new SurveyManager();
-await surveyManager.init();
+
+let surveysLoaded = false;
+export {surveysLoaded };
+
+surveyManager.init().then(() => { 
+  surveysLoaded = true; 
+});
 
 const port = 8080;  
 
@@ -21,11 +28,11 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Home page
-app.get('/index.html', (request, response) => {
+app.get('/index.html', checkSurveys, (request, response) => {
   response.render('index.ejs');
 });
 
-app.post('/gottopic', async (request, response) => {
+app.post('/gottopic', checkSurveys, async (request, response) => {
 
   let topic = request.body.topic;
 
@@ -82,7 +89,7 @@ app.post('/gottopic', async (request, response) => {
 });
 
 // Got the options for a new survey
-app.post('/setoptions/:topic', async (request, response) => {
+app.post('/setoptions/:topic', checkSurveys, async (request, response) => {
   let topic = request.params.topic;
   let options = [];
   let optionNo = 1;
@@ -115,7 +122,7 @@ app.post('/setoptions/:topic', async (request, response) => {
 });
 
 // Got the selections for a survey
-app.post('/recordselection/:topic', async (request, response) => {
+app.post('/recordselection/:topic', checkSurveys, async (request, response) => {
   let topic = request.params.topic;
 
   let survey = await surveyManager.surveyExists(topic);
@@ -152,7 +159,7 @@ app.post('/recordselection/:topic', async (request, response) => {
 });
 
 // Get the results for a survey
-app.get('/displayresults/:topic', async (request, response) => {
+app.get('/displayresults/:topic', checkSurveys, async (request, response) => {
   let topic = request.params.topic;
   if (! await surveyManager.surveyExists(topic)) {
     response.status(404).send('<h1>Survey not found</h1>');
